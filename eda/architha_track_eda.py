@@ -54,7 +54,9 @@ def analyse(trip_dir, part):
     row["n_lon_invalid"] = sum(1 for v in lon if not -180 <= v <= 180)
     row["n_zero_coord"] = sum(1 for a, b in zip(lon, lat) if a == 0 and b == 0)
     row["n_duplicate_rows"] = n - len(set(zip(lon, lat, t)))
-
+    row["n_lon_looks_like_lat"] = sum(1 for a, b in zip(lon, lat) if abs(a) <= 90 and abs(b) > 90)  # should be 0
+    row["n_repeat_coords"] = sum(1 for i in range(1, n) if lon[i] == lon[i-1] and lat[i] == lat[i-1])
+    
     dts = [t[i + 1] - t[i] for i in range(n - 1)]
     row["t_start"], row["t_end"] = t[0], t[-1]
     row["duration_s"] = t[-1] - t[0]
@@ -98,6 +100,7 @@ def analyse(trip_dir, part):
     if row["n_gaps_big"]: fl.append(f"big_gaps(>{BIG_GAP_S}s)")
     if row["n_speed_implausible"]: fl.append("implausible_speed")
     if n < 30: fl.append("very_short_trip")
+    if row["n_lon_looks_like_lat"]: fl.append("lon_lat_order_suspect")
     row["flags"] = ";".join(fl)
     return row, gaps, dts
 
@@ -182,6 +185,8 @@ def main():
             "partition": part, "trips": len(g), "obs_total": sum(obs), "obs_min": min(obs),
             "obs_median": statistics.median(obs), "obs_max": max(obs),
             "nan_total": sum(r["n_nan"] for r in g), "dup_rows": sum(r["n_duplicate_rows"] for r in g),
+            "order_violations": sum(r["n_lon_looks_like_lat"] for r in g),
+            "repeat_coords": sum(r["n_repeat_coords"] for r in g),
             "non_monotonic_trips": sum(1 for r in g if not r["t_monotonic"]),
             "mean_pct_dt_eq_1s": round(statistics.mean(r["pct_dt_eq_1s"] for r in g), 2),
             "trips_with_big_gaps": sum(1 for r in g if r["n_gaps_big"] > 0),
