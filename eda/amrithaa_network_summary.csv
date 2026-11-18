@@ -1,0 +1,2 @@
+trip_id,nodes,arcs,invalid_endpoints,isolated_nodes,leaf_nodes,components,largest_component,largest_component_percent,average_degree,max_degree
+00000001,88809,165790,0,0,5454,175,86854,97.8,2.2017588307491356,6
