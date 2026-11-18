@@ -7,12 +7,13 @@ Scope of this module (CRS-INDEPENDENT only):
     * checking route continuity (to_node of arc i == from_node of arc i+1)
     * comparing route length with the number of GPS points
 
-Nothing here converts coordinates or measures distances in metres. Those parts
-need the team's projected CRS (Harshitha) and live in a later section.
+Nothing here converts coordinates or measures distances. Spatial-proximity
+analysis lives in `eda/arun_spatial_analysis.py`.
 
-NOTE: The shared `src/data_loader.py` loader is available to other EDA work.
-`read_trip_raw` remains here so this standalone route analysis can test the raw
-file parsing and route-validation path independently.
+`read_trip_raw` delegates file parsing to the shared `src.data_loader.load_trip`
+implementation and preserves the legacy column names expected by this module.
+The route-validation helpers remain usable independently of geospatial
+projection.
 
 Raw formats (verified against the actual files, see notebook section 1):
     .track : lon, lat, timestamp_s   (whitespace separated, no header, CRLF)
@@ -21,32 +22,24 @@ Raw formats (verified against the actual files, see notebook section 1):
     .route : arc_id                  (one integer per line)
 """
 
-import os
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.data_loader import find_dataset_root, load_trip
+
 PARTITIONS = ("train", "student_test")  # evaluator data is never touched here
-DEFAULT_DATA_ROOT = Path.home() / "Downloads" / "Student folder" / "Student folder"
 
 
 def resolve_data_root(data_root=None):
-    """Resolve an explicit path, PATHSNAP_DATA, or the user's downloaded data."""
-    if data_root is not None:
-        root = Path(data_root).expanduser()
-    elif os.environ.get("PATHSNAP_DATA"):
-        root = Path(os.environ["PATHSNAP_DATA"]).expanduser()
-    else:
-        root = DEFAULT_DATA_ROOT
-
-    root = root.resolve()
-    if not root.is_dir():
-        raise FileNotFoundError(
-            f"Dataset root not found: {root}. Set PATHSNAP_DATA to the "
-            "directory containing train/ and student_test/."
-        )
-    return root
+    """Resolve an explicit path or use the shared loader's dataset discovery."""
+    return find_dataset_root(data_dir=data_root)
 
 
 def list_trips(data_root=None, partitions=PARTITIONS):
@@ -83,20 +76,23 @@ def read_trip_raw(data_root=None, partition=None, trip_id=None):
     if trip_id is None:
         raise ValueError("trip_id is required.")
 
-    base = resolve_data_root(data_root) / partition / trip_id / trip_id
-    track = pd.read_csv(f"{base}.track", sep=r"\s+", header=None,
-                        names=["lon", "lat", "ts"])
-    nodes = pd.read_csv(f"{base}.nodes", sep=r"\s+", header=None,
-                        names=["lon", "lat"])
-    arcs = pd.read_csv(f"{base}.arcs", sep=r"\s+", header=None,
-                       names=["from_node", "to_node"])
-    # Read the route as raw text tokens first, so a non-integer token would be
-    # detected (not silently coerced to NaN/float by pandas).
-    tokens = Path(f"{base}.route").read_text().split()
-    try:
-        route = np.array([int(t) for t in tokens], dtype=np.int64)
-    except ValueError:
-        route = None  # caller reports this as "route not all integers"
+    track, nodes, arcs, route_frame = load_trip(
+        trip_id, partition, data_dir=resolve_data_root(data_root)
+    )
+    track = track.rename(
+        columns={
+            "longitude": "lon",
+            "latitude": "lat",
+            "timestamp_seconds": "ts",
+        }
+    )
+    nodes = nodes[["longitude", "latitude"]].rename(
+        columns={"longitude": "lon", "latitude": "lat"}
+    )
+    arcs = arcs[["from_node_id", "to_node_id"]].rename(
+        columns={"from_node_id": "from_node", "to_node_id": "to_node"}
+    )
+    route = route_frame["arc_id"].to_numpy(dtype=np.int64)
     return track, nodes, arcs, route
 
 
