@@ -1,3 +1,4 @@
+ HEAD
 # PathSnap: distributed map-matching and route reconstruction
 
 # Core data / ML
@@ -31,3 +32,12 @@ ipykernel
 # osmnx>=1.8
 # leuvenmapmatching>=1.1
 # dask[dataframe]>=2023.10
+
+ipykernel
+matplotlib
+nbconvert
+networkx
+numpy
+pandas
+pyproj
+ba582d4 (Complete Arun reference route validation EDA)
