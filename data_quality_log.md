@@ -13,7 +13,7 @@ Source: eda/architha_track_eda_stdlib.py -> results/track_*.csv
 | 4 | Gaps with movement (gap > 5 s, moved >= 50 m) | 459 events | Keep points; add `gap_s` and `jump_m` features; relax HMM transition distance |
 | 5 | Huge time jumps (max 153,064 s, trip 90) | timestamp jumps, little movement | Cap time-gap feature at 60 s |
 | 6 | Implausible speeds (max 648 km/h) | 57 trips flagged | Keep (this is GPS noise to be corrected); add implied_speed feature |
-| 7 | Trips span 25 UTM zones | results/track_inventory.csv `utm_epsg` | Project each trip with its own UTM zone |
+| 7 | GPS tracks span 23 UTM zones; 2 trips cross a zone boundary | results/harshitha_crs_summary.csv and results/harshitha_trip_inventory.csv | Select one local UTM CRS per trip from the median valid GPS position; keep track and network in the same trip CRS |
 | 8 | Candidate search radius | median GPS error about 5 m; 50 m leaves about 1.3% candidate miss rate | Radius = 50 m |
 | 9 | student_test differs from train | max 3,958 obs vs 19,313; fewer gaps | Report both; do not tune on student_test |
 
@@ -51,4 +51,11 @@ The notebook was executed against the local student dataset at `C:\Users\arunr\D
 - **Pending:** no source file links GPS observations to specific route arcs. Alignment must account for uneven sampling, loops/repeated arcs, and route discontinuities; point-to-arc mappings and distances are not validated yet.
 - **Pending CRS decision:** projected CRS selection is Harshitha's responsibility. No metre-based GPS-to-arc distances, noise distribution, or candidate search radius was calculated.
 - **Limitation:** the supplied reference route is not independently verified ground truth; any future alignment or noise conclusions will inherit that uncertainty.
+
+## Harshitha — shared loader and geospatial EDA (verified 2026-11-18)
+
+- The shared `load_trip(trip_id, partition, data_dir=None)` loader returns named `track`, `nodes`, `arcs`, and `route` DataFrames. It honors `PATHSNAP_DATA` and accepts a dataset root or its parent directory.
+- Scanned all 80 training and 10 student-test trips: 227,577 GPS observations, 0 invalid longitude/latitude coordinates, and WGS 84 track bounds of longitude -100.418538..137.237029 and latitude -34.640291..61.699590.
+- GPS positions and road-network nodes occupy 23 WGS 84 UTM zones. Two training trips cross UTM zone boundaries, so the shared geospatial helper selects each trip's UTM zone from its median valid GPS position, then uses that same CRS for its track and network. Southern-hemisphere trips use the matching EPSG:327xx CRS. Projected metre coordinates are not directly comparable across trips.
+- Generated `results/harshitha_trip_inventory.csv`, `results/harshitha_dataset_summary.csv`, `results/harshitha_crs_summary.csv`, coordinate/trajectory PNGs, and three Folium maps with GPS, road-network, and reference-route layers plus a legend and layer control under `eda/figures/`.
  c7159c3 (Complete Arun reference route validation EDA)

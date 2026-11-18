@@ -10,8 +10,9 @@ Scope of this module (CRS-INDEPENDENT only):
 Nothing here converts coordinates or measures distances in metres. Those parts
 need the team's projected CRS (Harshitha) and live in a later section.
 
-NOTE: Harshitha is writing the shared loader (load_trip). `read_trip_raw` below
-is a deliberately small stand-in; swap it for the shared loader when ready.
+NOTE: The shared `src/data_loader.py` loader is available to other EDA work.
+`read_trip_raw` remains here so this standalone route analysis can test the raw
+file parsing and route-validation path independently.
 
 Raw formats (verified against the actual files, see notebook section 1):
     .track : lon, lat, timestamp_s   (whitespace separated, no header, CRLF)
